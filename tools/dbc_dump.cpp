@@ -7,6 +7,7 @@
 // 位算错了，先回来看看 startBit/length/order 是不是解析阶段就错了。
 // ============================================================================
 
+#include "Bits.h"
 #include "Dbc.h"
 
 #include <cstdio>
@@ -45,6 +46,14 @@ void printSignal(const dbc::Signal& s) {
         }
         std::printf("\n");
     }
+
+    // M1：位引擎的结论 —— 这段声明实际吃掉了帧里哪几位
+    const std::string bits = dbc::describeBits(s);
+    if (dbc::layoutOf(s).ok) {
+        std::printf("   %-16s 位段：%s\n", "", bits.c_str());
+    } else {
+        std::printf("   %-16s 位段：%s   <<< 声明有问题\n", "", bits.c_str());
+    }
 }
 
 } // namespace
@@ -75,6 +84,16 @@ int main(int argc, char** argv) {
                     m.id, m.extended ? "(扩展)" : "", m.name.c_str(), m.dlc,
                     m.transmitter.c_str(), m.signals.size());
         for (const auto& s : m.signals) printSignal(s);
+
+        // M1：抢位检查。解析阶段永远发现不了这类错，只有把位摊开才算得出
+        const auto overlaps = dbc::findOverlaps(m);
+        if (!overlaps.empty()) {
+            std::printf("   !! %zu 处抢位：\n", overlaps.size());
+            for (const auto& o : overlaps) {
+                std::printf("      %s × %s 争用 %d 位\n",
+                            o.a.c_str(), o.b.c_str(), o.sharedBits);
+            }
+        }
         std::printf("\n");
     }
     return 0;

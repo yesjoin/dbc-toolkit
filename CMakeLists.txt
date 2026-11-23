@@ -15,5 +15,11 @@ target_compile_definitions(dbc-selftest PRIVATE
     DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")
 
 # M0：把解析结果打成表，M1 调位引擎时的参照物
-add_executable(dbc-dump tools/dbc_dump.cpp src/Dbc.cpp)
+add_executable(dbc-dump tools/dbc_dump.cpp src/Dbc.cpp src/Bits.cpp)
 target_include_directories(dbc-dump PRIVATE include)
+
+# M1：位引擎自测。位号序列、取值、放值、非法声明、抢位检查
+add_executable(bits-selftest tests/bits_selftest.cpp src/Dbc.cpp src/Bits.cpp)
+target_include_directories(bits-selftest PRIVATE include)
+target_compile_definitions(bits-selftest PRIVATE
+    DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")

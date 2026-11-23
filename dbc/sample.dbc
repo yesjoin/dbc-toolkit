@@ -28,9 +28,9 @@ BO_ 256 EngineData: 8 ECU
  SG_ EngineSpeed : 0|16@1+ (0.125,0) [0|8031.875] "rpm" TCU,ABS
  SG_ EngineTemp : 16|8@1+ (1,-40) [-40|215] "degC" TCU
  SG_ ThrottlePos : 24|8@1+ (0.3921568627,0) [0|100] "%" TCU
- SG_ GearPosition : 32|4@1+ (1,0) [0|15] "" TCU
  SG_ BrakePress : 39|12@0+ (0.1,0) [0|400] "bar" ABS
- SG_ SteeringAngle : 48|16@0- (0.1,0) [-3276.8|3276.7] "deg" ABS
+ SG_ GearPosition : 40|4@1+ (1,0) [0|15] "" TCU
+ SG_ SteeringAngle : 55|16@0- (0.1,0) [-3276.8|3276.7] "deg" ABS
 
 BO_ 512 AbsStatus: 8 ABS
  SG_ WheelSpeedFL : 0|16@1+ (0.01,0) [0|655.35] "km/h" ECU
