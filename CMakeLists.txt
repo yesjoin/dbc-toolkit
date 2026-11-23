@@ -53,3 +53,32 @@ target_link_libraries(dbc-send PRIVATE canraw)
 add_executable(dbc-read tools/dbc_read.cpp src/Dbc.cpp src/Bits.cpp src/Codec.cpp src/Mux.cpp)
 target_include_directories(dbc-read PRIVATE include)
 target_link_libraries(dbc-read PRIVATE canraw)
+
+# ---------------------------------------------------------------------------
+# M4：代码生成。dbc-gen 把 DBC 编成自包含的 C++17 头文件，
+# 生成物在 build/gen/，由 gen-header 这个 target 负责在构建时产出。
+# 注意：生成器不带时间戳，同一份 DBC 永远生成同样的字节，CI 里不会假报变更。
+# ---------------------------------------------------------------------------
+add_executable(dbc-gen tools/dbc_gen.cpp src/Dbc.cpp src/Bits.cpp src/Codec.cpp src/Mux.cpp)
+target_include_directories(dbc-gen PRIVATE include)
+
+set(GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/gen)
+
+add_custom_command(
+    OUTPUT ${GEN_DIR}/sample_dbc.h
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${GEN_DIR}
+    COMMAND $<TARGET_FILE:dbc-gen> ${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc
+            -o ${GEN_DIR}/sample_dbc.h
+    COMMENT "dbc-gen: dbc/sample.dbc -> gen/sample_dbc.h"
+    DEPENDS dbc-gen ${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc
+    VERBATIM)
+
+add_custom_target(gen-header DEPENDS ${GEN_DIR}/sample_dbc.h)
+
+# M4 验收：差分测试 —— 生成的代码 vs 运行时库，逐字节比
+add_executable(gen-selftest tests/gen_selftest.cpp
+    src/Dbc.cpp src/Bits.cpp src/Codec.cpp src/Mux.cpp)
+add_dependencies(gen-selftest gen-header)
+target_include_directories(gen-selftest PRIVATE include ${GEN_DIR})
+target_compile_definitions(gen-selftest PRIVATE
+    DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")

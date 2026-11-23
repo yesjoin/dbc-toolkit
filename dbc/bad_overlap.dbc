@@ -1,0 +1,17 @@
+VERSION "1.0"
+
+
+NS_ :
+    CM_
+    BA_
+    VAL_
+
+BS_:
+
+BU_ : ECU
+
+BO_ 256 BadMsg: 8 ECU
+ SG_ FirstSignal : 0|16@1+ (1,0) [0|65535] "" ECU
+ SG_ SecondSignal : 8|16@1+ (1,0) [0|65535] "" ECU
+
+CM_ "故意写坏的 DBC：两条信号抢 byte1 的 8 个 bit，用来验证编译期体检。";
