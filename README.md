@@ -82,12 +82,52 @@ cmake --build build -j4
 没有 gtest、没有 catch2。每个夹具就是 `check(cond, "人话描述")` 加最后一行的
 `通过 N 项，失败 M 项`。好处是：编译即跑，失败信息直接就是那句话。
 
+这 5 个 target 已注册进 ctest，CI 用的就是这一条命令：
+
+```bash
+cd build && ctest --output-on-failure
+```
+
 端到端（需要 `vcan0`，见配套项目 `uds-ecu/tools/vcanup.sh`）：
 
 ```bash
 bash tools/m35_loop.sh vcan0   # 真总线闭环，10 项断言
 bash tools/m4_check.sh         # 生成物能编译 / 坏 DBC 编不过
 ```
+
+---
+
+## 持续集成
+
+推上去自动跑，**不用等人想起来"我还没跑测试"**。
+
+```bash
+bash tools/ci_local.sh          # 在本地把 CI 的每一步原样跑一遍（gcc + -Werror）
+bash tools/ci_local.sh clang    # 换 clang 腿
+```
+
+`ci_local.sh` 的 7 步和 `.github/workflows/ci.yml` 一一对应：配置 → 构建（`-Werror`）→
+ctest → 生成物可复现 → 端到端 → 真总线。参数完全一致，所以本地绿 ≈ CI 绿。
+
+CI 上有两个 job：
+
+| job | 干什么 | 特点 |
+|---|---|---|
+| `build-test` | gcc（`-Werror`）+ clang 两条腿，各跑一遍 5 个测试 target | 干净环境，验证"零警告"不是靠人眼 |
+| `bus-e2e` | 真 SocketCAN 虚拟总线上跑 `m35_loop.sh` | runner 没 vcan 模块就明说跳过，不假装成功 |
+
+`-Werror` 这个开关是 `DBC_WERROR`，默认关，CI 打开：
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DDBC_WERROR=ON
+```
+
+为什么要它：README 里"零警告"是人看日志得出的结论，换台机器、换个编译器就会悄悄失效；
+开了 `-Werror`，这句话变成每次提交都由机器替你检查的事实。
+
+生成物可复现这一项，接 CI 当天就抓到一个真问题：生成器原本把**调用时的完整路径**写进
+注释，用 `dbc/sample.dbc` 和用绝对路径生成出来差 21 字节。已修成只记文件名，并把
+"换路径写法字节也得一样"钉成了测试。
 
 ---
 
@@ -163,7 +203,8 @@ double rpm = EngineData::EngineSpeed_toPhysical(v.EngineSpeed);
 | M3 | 多路复用路由（开关识别、分支有效判定、只写当前分支） | 55 | `9f27bbc` |
 | M3.5 | SocketCAN 收发，真总线闭环 + 与 `uds-ecu` 共存 | 10 | `7144d20` |
 | M4 | 代码生成（自包含头文件 + constexpr 编译期布局检查） | 31 | `f307f72` |
-| M5 | 验收报告 + README | — | — |
+| M5 | 验收报告 + README | — | `e8d1de7` |
+| M6 | CI（ctest 注册、`-Werror` 开关、`ci_local.sh`、GitHub Actions） | — | `e6fd4c4` |
 
 单元 279 项 + 端到端 12 项 = **291 项断言，全绿**。
 
