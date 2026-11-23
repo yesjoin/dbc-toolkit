@@ -1,0 +1,54 @@
+VERSION "2.0"
+
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    VAL_TABLE_
+    SIG_GROUP_
+    SIG_VALTYPE_
+    BO_TX_BU_
+    SG_MUL_VAL_
+
+BS_:
+
+BU_ : ECU TCU ABS GATEWAY
+
+BO_ 256 EngineData: 8 ECU
+ SG_ EngineSpeed : 0|16@1+ (0.125,0) [0|8031.875] "rpm" TCU,ABS
+ SG_ EngineTemp : 16|8@1+ (1,-40) [-40|215] "degC" TCU
+ SG_ ThrottlePos : 24|8@1+ (0.3921568627,0) [0|100] "%" TCU
+ SG_ GearPosition : 32|4@1+ (1,0) [0|15] "" TCU
+ SG_ BrakePress : 39|12@0+ (0.1,0) [0|400] "bar" ABS
+ SG_ SteeringAngle : 48|16@0- (0.1,0) [-3276.8|3276.7] "deg" ABS
+
+BO_ 512 AbsStatus: 8 ABS
+ SG_ WheelSpeedFL : 0|16@1+ (0.01,0) [0|655.35] "km/h" ECU
+ SG_ WheelSpeedFR : 16|16@1+ (0.01,0) [0|655.35] "km/h" ECU
+ SG_ AbsLamp : 32|1@1+ (1,0) [0|1] "" ECU
+ SG_ AbsFaultCode : 40|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 768 MuxFrame: 8 GATEWAY
+ SG_ MuxSel M : 0|8@1+ (1,0) [0|255] "" ECU,TCU
+ SG_ MuxA m1 : 8|16@1+ (0.1,0) [0|100] "" ECU
+ SG_ MuxB m2 : 8|16@1+ (0.1,0) [0|100] "" ECU
+
+BO_ 2147487744 ExtDiag: 8 GATEWAY
+ SG_ ExtCounter : 0|8@1+ (1,0) [0|255] "" ECU
+
+CM_ BO_ 256 "Engine data: speed, temp, throttle, gear, brake, steering";
+CM_ SG_ 256 EngineSpeed "Crank speed, 0.125 rpm per LSB";
+CM_ "Sample database created for the DBC parser milestone (M0)";
+
+VAL_ 256 GearPosition 0 "P" 1 "R" 2 "N" 3 "D" ;
+VAL_ 512 AbsFaultCode 0 "No fault" 1 "Sensor FL open" 2 "Sensor FR open" 255 "Unknown" ;
