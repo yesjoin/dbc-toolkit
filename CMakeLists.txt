@@ -40,3 +40,16 @@ add_executable(mux-selftest tests/mux_selftest.cpp
 target_include_directories(mux-selftest PRIVATE include)
 target_compile_definitions(mux-selftest PRIVATE
     DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")
+
+# M3.5：真总线收发。dbc-send 按 DBC 编帧发出去，dbc-read 挂总线上解回来。
+# CanRaw 只在 Linux 有真实现，别的系统给桩，所以这两个 target 到处都能配。
+add_library(canraw STATIC src/CanRaw.cpp)
+target_include_directories(canraw PUBLIC include)
+
+add_executable(dbc-send tools/dbc_send.cpp src/Dbc.cpp src/Bits.cpp src/Codec.cpp src/Mux.cpp)
+target_include_directories(dbc-send PRIVATE include)
+target_link_libraries(dbc-send PRIVATE canraw)
+
+add_executable(dbc-read tools/dbc_read.cpp src/Dbc.cpp src/Bits.cpp src/Codec.cpp src/Mux.cpp)
+target_include_directories(dbc-read PRIVATE include)
+target_link_libraries(dbc-read PRIVATE canraw)
