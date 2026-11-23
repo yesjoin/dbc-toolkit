@@ -23,3 +23,13 @@ add_executable(bits-selftest tests/bits_selftest.cpp src/Dbc.cpp src/Bits.cpp)
 target_include_directories(bits-selftest PRIVATE include)
 target_compile_definitions(bits-selftest PRIVATE
     DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")
+
+# M2：编解码自测。符号扩展、换算方向、位宽 vs 量程、值表、编码不碰别人的位
+add_executable(codec-selftest tests/codec_selftest.cpp src/Dbc.cpp src/Bits.cpp src/Codec.cpp)
+target_include_directories(codec-selftest PRIVATE include)
+target_compile_definitions(codec-selftest PRIVATE
+    DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")
+
+# M2：喂一帧 8 字节，把每个信号的值打出来（M3.5 接真帧的雏形）
+add_executable(dbc-decode tools/dbc_decode.cpp src/Dbc.cpp src/Bits.cpp src/Codec.cpp)
+target_include_directories(dbc-decode PRIVATE include)
