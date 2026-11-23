@@ -316,6 +316,14 @@ ParseResult parseText(const std::string& text) {
             continue;
         }
 
+        // ---- 扩展多路复用（多开关）本工具不支持，但要记下来告警 ----
+        // 注意：NS_ 段的目录里也有一行裸的 "SG_MUL_VAL_"，那是关键字名不是语句。
+        // 判据和 needsSemicolon 一样 —— 关键字后面必须还有内容。
+        if (startsToken(line, "SG_MUL_VAL_") && line.size() > 11) {
+            r.db.hasExtendedMux = true;
+            continue;
+        }
+
         // ---- 其余语句一律跳过（CM_ / BA_ / NS_ / BS_ / SIG_GROUP_ ...）----
     }
 

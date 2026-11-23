@@ -9,6 +9,7 @@
 
 #include "Bits.h"
 #include "Dbc.h"
+#include "Mux.h"
 
 #include <cstdio>
 #include <string>
@@ -84,6 +85,23 @@ int main(int argc, char** argv) {
                     m.id, m.extended ? "(扩展)" : "", m.name.c_str(), m.dlc,
                     m.transmitter.c_str(), m.signals.size());
         for (const auto& s : m.signals) printSignal(s);
+
+        // M3：多路复用结构
+        const auto mux = dbc::analyzeMux(m);
+        if (mux.selector != nullptr) {
+            std::printf("   多路复用：开关 %s（%u 位），分支 ",
+                        mux.selector->name.c_str(), mux.selector->length);
+            for (std::size_t i = 0; i < mux.branches.size(); ++i) {
+                std::printf("%s%d", i ? "、" : "", mux.branches[i]);
+            }
+            std::printf("\n");
+        }
+        if (!mux.ok) {
+            std::printf("   !! 结构错误：%s\n", mux.error.c_str());
+        }
+        for (const auto& w : mux.warnings) {
+            std::printf("   !! 告警：%s\n", w.c_str());
+        }
 
         // M1：抢位检查。解析阶段永远发现不了这类错，只有把位摊开才算得出
         const auto overlaps = dbc::findOverlaps(m);

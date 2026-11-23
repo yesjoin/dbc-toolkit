@@ -74,6 +74,10 @@ struct Database {
     std::vector<std::string> nodes;       // BU_ 里列出的节点
     std::vector<Message>     messages;
 
+    // 文件里出现过 SG_MUL_VAL_ → 用了"扩展多路复用"（多个开关）。
+    // 本工具只支持单开关，出现这个标志就必须告警，不能装作没看见。
+    bool hasExtendedMux = false;
+
     const Message* find(std::uint32_t id, bool extended) const;
     const Message* find(const std::string& name) const;
     std::size_t    signalCount() const;

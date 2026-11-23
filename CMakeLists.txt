@@ -15,7 +15,7 @@ target_compile_definitions(dbc-selftest PRIVATE
     DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")
 
 # M0：把解析结果打成表，M1 调位引擎时的参照物
-add_executable(dbc-dump tools/dbc_dump.cpp src/Dbc.cpp src/Bits.cpp)
+add_executable(dbc-dump tools/dbc_dump.cpp src/Dbc.cpp src/Bits.cpp src/Mux.cpp src/Codec.cpp)
 target_include_directories(dbc-dump PRIVATE include)
 
 # M1：位引擎自测。位号序列、取值、放值、非法声明、抢位检查
@@ -31,5 +31,12 @@ target_compile_definitions(codec-selftest PRIVATE
     DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")
 
 # M2：喂一帧 8 字节，把每个信号的值打出来（M3.5 接真帧的雏形）
-add_executable(dbc-decode tools/dbc_decode.cpp src/Dbc.cpp src/Bits.cpp src/Codec.cpp)
+add_executable(dbc-decode tools/dbc_decode.cpp src/Dbc.cpp src/Bits.cpp src/Codec.cpp src/Mux.cpp)
 target_include_directories(dbc-decode PRIVATE include)
+
+# M3：多路复用路由自测。开关识别、分支路由、只写当前分支、按帧查抢位
+add_executable(mux-selftest tests/mux_selftest.cpp
+    src/Dbc.cpp src/Bits.cpp src/Codec.cpp src/Mux.cpp)
+target_include_directories(mux-selftest PRIVATE include)
+target_compile_definitions(mux-selftest PRIVATE
+    DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")

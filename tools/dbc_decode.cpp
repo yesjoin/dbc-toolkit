@@ -11,6 +11,7 @@
 
 #include "Codec.h"
 #include "Dbc.h"
+#include "Mux.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -97,35 +98,73 @@ int main(int argc, char** argv) {
     }
     std::printf("\n");
 
-    for (const auto& s : msg->signals) {
-        dbc::DecodeResult r = dbc::decodeSignal(s, data);
-        if (!r.ok) {
-            std::printf("  %-16s 解不出来：%s\n", s.name.c_str(), r.error.c_str());
+    // M3：先做一次路由，开关值决定读哪一支
+    dbc::DecodedMessage dm = dbc::decodeMessage(*msg, data);
+    if (!dm.ok) {
+        std::fprintf(stderr, "这帧解不了：%s\n", dm.error.c_str());
+        return 1;
+    }
+    if (dm.hasMux) {
+        dbc::MuxInfo mi = dbc::analyzeMux(*msg);
+        std::printf("多路复用：开关 %s，本帧取值 %lld",
+                    mi.selector != nullptr ? mi.selector->name.c_str() : "?",
+                    static_cast<long long>(dm.selectorValue));
+        bool matched = false;
+        for (std::size_t i = 0; i < mi.branches.size(); ++i) {
+            if (mi.branches[i] == dm.selectorValue) matched = true;
+        }
+        std::printf(matched ? "（命中分支 %lld）\n" : "（DBC 没定义这一支）\n",
+                    static_cast<long long>(dm.selectorValue));
+        std::printf("\n");
+    }
+
+    for (const auto& sv : dm.signals) {
+        const dbc::Signal* s = msg->find(sv.name);
+        if (s == nullptr) continue;
+
+        if (!sv.decoded.ok) {
+            std::printf("  %-16s 解不出来：%s\n", sv.name.c_str(), sv.decoded.error.c_str());
             continue;
         }
 
-        const int digits = static_cast<int>((s.length + 3) / 4);   // 十六进制位数
+        const dbc::DecodeResult& r = sv.decoded;
+        const int digits = static_cast<int>((s->length + 3) / 4);   // 十六进制位数
+
         std::printf("  %-16s raw=0x%0*llX(%8lld) → %10.3f %-6s",
-                    s.name.c_str(),
+                    sv.name.c_str(),
                     digits > 0 ? digits : 1,
                     static_cast<long long>(r.raw),
                     static_cast<long long>(r.rawSigned),
-                    r.value, s.unit.c_str());
+                    r.value, s->unit.c_str());
 
-        if (const std::string* txt = dbc::valueTextFor(s, r.rawSigned)) {
+        if (const std::string* txt = dbc::valueTextFor(*s, r.rawSigned)) {
             std::printf("  \"%s\"", txt->c_str());
-        } else if (!s.valueTable.empty()) {
+        } else if (!s->valueTable.empty()) {
             std::printf("  \"(值表里没有这个值)\"");
         }
 
         if (r.rangeDeclared) {
             if (r.inEngineeringRange) {
-                std::printf("  [量程 %g..%g ✓]", s.minimum, s.maximum);
+                std::printf("  [量程 %g..%g ✓]", s->minimum, s->maximum);
             } else {
-                std::printf("  [量程 %g..%g  ✗ 超量程]", s.minimum, s.maximum);
+                std::printf("  [量程 %g..%g  ✗ 超量程]", s->minimum, s->maximum);
             }
         }
+
+        // M3：未选中的分支，值是"不存在"。不用 0 顶替，也不打印数值
+        if (!sv.active) {
+            std::printf("   ← 分支未选中，本帧不读这条");
+        }
         std::printf("\n");
+    }
+
+    // M3：按"此刻有效"的信号再查一遍抢位
+    const auto ov = dbc::findActiveOverlaps(*msg, data);
+    if (!ov.empty()) {
+        std::printf("\n  !! 本帧内同时有效的信号之间存在抢位：\n");
+        for (const auto& o : ov) {
+            std::printf("     %s × %s 争用 %d 位\n", o.a.c_str(), o.b.c_str(), o.sharedBits);
+        }
     }
     return 0;
 }
