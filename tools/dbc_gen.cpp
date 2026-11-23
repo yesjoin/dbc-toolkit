@@ -393,6 +393,14 @@ void emitMessage(std::ostringstream& o, const dbc::Message& m) {
 
 } // namespace
 
+// 取路径最后一段（文件名）。生成物里只记文件名，不记调用时的路径写法。
+static const char* baseName(const char* p) {
+    const char* a = std::strrchr(p, '/');
+    const char* b = std::strrchr(p, '\\');   // Windows 路径也能认
+    const char* best = a > b ? a : b;
+    return best ? best + 1 : p;
+}
+
 int main(int argc, char** argv) {
     const char* inPath = nullptr;
     const char* outPath = nullptr;
@@ -427,7 +435,11 @@ int main(int argc, char** argv) {
 
     std::ostringstream o;
     o << "// ============================================================================\n";
-    o << "// 本文件由 dbc-gen 从 " << inPath << " 自动生成，请勿手改。\n";
+    // 只写文件名，不写调用时的完整路径。
+    // 原因：同一个 DBC，用 `dbc/sample.dbc` 还是 `/home/ye/dbc-toolkit/dbc/sample.dbc`
+    // 生成出来的字节必须一样，否则换目录、换机器、换写法，diff 就凭空一片红 ——
+    // "不带时间戳所以可复现"这个承诺会被路径悄悄破坏（CI 接进来当天抓到的就是这一条）。
+    o << "// 本文件由 dbc-gen 从 " << baseName(inPath) << " 自动生成，请勿手改。\n";
     o << "// 改 DBC 之后重新生成；生成器不带时间戳，同样的 DBC 永远生成同样的字节，\n";
     o << "// 这样 diff 里只会出现真正的改动，CI 里也不会因为时间戳天天报变更。\n";
     o << "//\n";

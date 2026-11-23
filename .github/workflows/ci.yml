@@ -1,0 +1,126 @@
+# =============================================================================
+# ci.yml —— dbc-toolkit 的持续集成
+#
+# 三条铁律：
+#   1. 干净环境：每次都是全新 checkout，没有残留的 build/ 和缓存。
+#      本地能编过、CI 编不过，九成是"我机器上刚好有这个文件"。
+#   2. 参数一致：CI 用的 cmake 参数和 tools/ci_local.sh 完全一样，
+#      所以本地绿 ≈ CI 绿。
+#   3. 红灯要能解释：每条失败都直接指向"哪一层错了"，不是一句 "exit code 1"。
+#
+# 两个 job：
+#   ① build-test  构建 + 5 个 target 的测试（gcc 带 -Werror / clang 只查可移植性）
+#   ② bus-e2e     在真 SocketCAN 虚拟总线上跑端到端（内核没 vcan 模块则跳过，不算失败）
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # ① 构建 + 单元测试
+  # ---------------------------------------------------------------------------
+  build-test:
+    name: 构建 + 单元测试（${{ matrix.compiler }}）
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false        # 一条腿红了不要掐掉另一条：两个编译器的结论都有用
+      matrix:
+        include:
+          - compiler: gcc
+            werror: ON        # 主腿：把警告当错误，守护"零警告"这个承诺
+          - compiler: clang
+            werror: OFF       # 副腿：只验证能不能编、测试过不过（可移植性）
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 选编译器
+        run: |
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "CC=clang"    >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+          else
+            echo "CC=gcc"      >> "$GITHUB_ENV"
+            echo "CXX=g++"     >> "$GITHUB_ENV"
+          fi
+
+      - name: 记录环境（红了先看这段）
+        run: |
+          echo "### 环境" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          $CXX --version | head -1 | tee -a "$GITHUB_STEP_SUMMARY"
+          cmake --version | head -1 | tee -a "$GITHUB_STEP_SUMMARY"
+          uname -srm | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 配置
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DDBC_WERROR=${{ matrix.werror }}
+
+      - name: 构建
+        run: cmake --build build -j"$(nproc)"
+
+      - name: 单元测试（ctest：4 套自测 + 1 套差分测试）
+        run: cd build && ctest --output-on-failure
+
+      - name: 生成物可复现（换时区换 locale，字节必须一样）
+        run: |
+          ./build/dbc-gen dbc/sample.dbc -o /tmp/a.h
+          TZ=America/New_York LANG=C LC_ALL=C ./build/dbc-gen dbc/sample.dbc -o /tmp/b.h
+          cmp /tmp/a.h /tmp/b.h
+          echo "两次生成逐字节相同：$(md5sum /tmp/a.h | cut -d' ' -f1)"
+          echo "规模：$(wc -l < /tmp/a.h) 行 / $(wc -c < /tmp/a.h) 字节"
+
+      - name: 端到端：好 DBC 能编、坏 DBC 编不过
+        run: bash tools/m4_check.sh
+
+      - name: 提交生成物（谁想直接拿这个头文件用，从 Artifacts 下）
+        if: matrix.compiler == 'gcc'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample_dbc.h
+          path: build/gen/sample_dbc.h
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # ② 端到端：真总线
+  #    单元测试证明"逻辑对"，这一层证明"帧真的进过内核、真的被抓回来"。
+  #    GitHub 的 runner 内核有时没带 vcan 模块，拿不到就明说跳过，不假装成功。
+  # ---------------------------------------------------------------------------
+  bus-e2e:
+    name: 端到端（真 SocketCAN 虚拟总线）
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 准备 vcan0（拿不到就跳过）
+        run: |
+          if sudo modprobe vcan 2>/dev/null && sudo ip link add dev vcan0 type vcan 2>/dev/null; then
+            sudo ip link set up vcan0
+            ip -br link show vcan0
+            echo "HAVE_VCAN=1" >> "$GITHUB_ENV"
+          else
+            echo "HAVE_VCAN=0" >> "$GITHUB_ENV"
+            echo "::notice::这个 runner 的内核没有 vcan 模块，跳过总线端到端（结论：仅单元层有效）"
+          fi
+
+      - name: 配置
+        if: env.HAVE_VCAN == '1'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DDBC_WERROR=ON
+
+      - name: 构建
+        if: env.HAVE_VCAN == '1'
+        run: cmake --build build -j"$(nproc)"
+
+      - name: 总线闭环（4 帧发出 → 抓回 → 解成物理值）
+        if: env.HAVE_VCAN == '1'
+        run: bash tools/m35_loop.sh vcan0
+
+      - name: 说明
+        if: env.HAVE_VCAN == '0'
+        run: echo "跳过：无 vcan0。这条腿在本地用 'bash tools/ci_local.sh' 跑。"

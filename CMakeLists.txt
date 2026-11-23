@@ -7,6 +7,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+# CI 里把警告升级成错误。理由：README 里"零警告"是人看日志得出的结论，
+# 会随编译器版本悄悄失效；-Werror 让它变成机器每次替你检查的结论。
+option(DBC_WERROR "把编译警告当错误（-Werror），CI 用" OFF)
+if(DBC_WERROR)
+    add_compile_options(-Werror)
+endif()
+
 # M0：DBC 解析器自测。样例文件用编译期绝对路径传进去，
 # 这样从任何目录跑测试都不会因为 cwd 不同而找不到文件。
 add_executable(dbc-selftest tests/dbc_selftest.cpp src/Dbc.cpp)
@@ -82,3 +89,22 @@ add_dependencies(gen-selftest gen-header)
 target_include_directories(gen-selftest PRIVATE include ${GEN_DIR})
 target_compile_definitions(gen-selftest PRIVATE
     DBC_SAMPLE="${CMAKE_CURRENT_SOURCE_DIR}/dbc/sample.dbc")
+
+# ---------------------------------------------------------------------------
+# M6：把 5 个测试 target 注册进 ctest，让 CI 只需要一条命令。
+# （4 套自测 64/56/73/55 + 1 套差分测试 31）
+#
+# 注意一个容易误会的点：每个 target 内部自己数断言（结尾打印"通过 N 项"），
+# ctest 只认"进程退出码是不是 0"。所以 279 项断言在 ctest 眼里是 5 个用例：
+# 粒度变粗了，但换来的是"配置一次、之后每条命令都能用"，CI 才写得干净。
+# ---------------------------------------------------------------------------
+enable_testing()
+
+add_test(NAME dbc-parser  COMMAND dbc-selftest)
+add_test(NAME bits-engine COMMAND bits-selftest)
+add_test(NAME codec       COMMAND codec-selftest)
+add_test(NAME mux         COMMAND mux-selftest)
+add_test(NAME gen-diff    COMMAND gen-selftest)
+
+set_tests_properties(dbc-parser bits-engine codec mux PROPERTIES LABELS unit)
+set_tests_properties(gen-diff PROPERTIES LABELS codegen)

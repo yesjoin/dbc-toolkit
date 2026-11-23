@@ -20,10 +20,10 @@ ok()   { echo "[PASS] $1"; pass=$((pass + 1)); }
 bad()  { echo "[FAIL] $1"; fail=$((fail + 1)); }
 
 CXX=${CXX:-g++}
-INF=build/include_none    # 故意不 include 本工程目录：证明生成物不依赖本工程
+BUILD=${BUILD:-build}     # 换构建目录（CI 用的是 build-ci）
 
 echo "① 正常 DBC"
-./build/dbc-gen dbc/sample.dbc -o "$TMP/sample_dbc.h" || bad "生成失败（正常 DBC）"
+"$BUILD/dbc-gen" dbc/sample.dbc -o "$TMP/sample_dbc.h" || bad "生成失败（正常 DBC）"
 cat > "$TMP/use_ok.cpp" <<'EOF'
 #include <cstdint>
 #include "sample_dbc.h"
@@ -47,7 +47,7 @@ fi
 
 echo
 echo "② 坏 DBC（FirstSignal 0|16 与 SecondSignal 8|16 抢 8 个 bit）"
-./build/dbc-gen dbc/bad_overlap.dbc -o "$TMP/bad_overlap.h" || bad "生成失败（坏 DBC）"
+"$BUILD/dbc-gen" dbc/bad_overlap.dbc -o "$TMP/bad_overlap.h" || bad "生成失败（坏 DBC）"
 cat > "$TMP/use_bad.cpp" <<'EOF'
 #include "bad_overlap.h"
 int main() { BadMsg::Value v{}; (void)v; return 0; }

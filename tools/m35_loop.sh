@@ -13,6 +13,7 @@ set -u
 cd "$(dirname "$0")/.." || exit 1
 
 IFACE=${1:-vcan0}
+BUILD=${BUILD:-build}    # 换构建目录（CI 用的是 build-ci，不碰你平时的 build/）
 LOG=$(mktemp)
 pass=0
 fail=0
@@ -27,15 +28,15 @@ ok() {
     fi
 }
 
-./build/dbc-read dbc/sample.dbc "$IFACE" 4 > "$LOG" 2>&1 &
+"$BUILD/dbc-read" dbc/sample.dbc "$IFACE" 4 > "$LOG" 2>&1 &
 READER=$!
 sleep 0.6
 
-./build/dbc-send dbc/sample.dbc "$IFACE" EngineData -1 \
+"$BUILD/dbc-send" dbc/sample.dbc "$IFACE" EngineData -1 \
     EngineSpeed=8000 EngineTemp=90 BrakePress=120.4 > /dev/null
-./build/dbc-send dbc/sample.dbc "$IFACE" MuxFrame 1 MuxA=45.5 > /dev/null
-./build/dbc-send dbc/sample.dbc "$IFACE" MuxFrame 2 MuxB=88.8 > /dev/null
-./build/dbc-send dbc/sample.dbc "$IFACE" ExtDiag -1 ExtCounter=7 > /dev/null
+"$BUILD/dbc-send" dbc/sample.dbc "$IFACE" MuxFrame 1 MuxA=45.5 > /dev/null
+"$BUILD/dbc-send" dbc/sample.dbc "$IFACE" MuxFrame 2 MuxB=88.8 > /dev/null
+"$BUILD/dbc-send" dbc/sample.dbc "$IFACE" ExtDiag -1 ExtCounter=7 > /dev/null
 
 wait $READER
 
