@@ -1,7 +1,15 @@
 # dbc-toolkit
 
+[![CI](https://github.com/yesjoin/dbc-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/yesjoin/dbc-toolkit/actions/workflows/ci.yml)
+
 一个自研的 **DBC 解析 → 位运算 → 物理值 → 多路复用 → 真总线 → 代码生成** 工具链。
 用 C++17 写的，不依赖任何第三方库；生成出来的头文件也不依赖本工程。
+
+```bash
+git clone git@github.com:yesjoin/dbc-toolkit.git && cd dbc-toolkit
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j4
+(cd build && ctest)         # 5 个套件（含一套差分测试）
+```
 
 配套项目：[`uds-ecu`](../uds-ecu) —— 一个跑在虚拟 CAN 上的 UDS/ISO-TP 虚拟 ECU。
 两个项目互为验收工具：`uds-ecu` 造帧，`dbc-toolkit` 读帧。
