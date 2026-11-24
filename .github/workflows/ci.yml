@@ -59,7 +59,8 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: 配置
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DDBC_WERROR=${{ matrix.werror }}
+        # -O2 与 tools/ci_local.sh 一致：有的警告只在优化后才出现，-O0 下看不见
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=-O2 -DDBC_WERROR=${{ matrix.werror }}
 
       - name: 构建
         run: cmake --build build -j"$(nproc)"
@@ -111,7 +112,7 @@ jobs:
 
       - name: 配置
         if: env.HAVE_VCAN == '1'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DDBC_WERROR=ON
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=-O2 -DDBC_WERROR=ON
 
       - name: 构建
         if: env.HAVE_VCAN == '1'
